@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #score {
+            color: #39ff14;
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #39ff14;
+        }
+
+        #gameCanvas {
+            border: 2px solid #39ff14;
+            box-shadow: 0 0 20px #39ff14;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+        }
+
+        #gameOver h1 {
+            color: #ff0000;
+            font-size: 48px;
+            text-shadow: 0 0 20px #ff0000;
+            margin-bottom: 20px;
+        }
+
+        #gameOver p {
+            color: #39ff14;
+            font-size: 24px;
+            text-shadow: 0 0 10px #39ff14;
+        }
+
+        #restartBtn {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: transparent;
+            color: #39ff14;
+            border: 2px solid #39ff14;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 10px #39ff14;
+            box-shadow: 0 0 10px #39ff14;
+            transition: all 0.3s ease;
+        }
+
+        #restartBtn:hover {
+            background-color: #39ff14;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameOver">
+            <h1>GAME OVER</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button id="restartBtn">RESTART (R)</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // Fullscreen Canvas
+        canvas.width = window.innerWidth * 0.9;
+        canvas.height = window.innerHeight * 0.85;
+
+        const gridSize = 20;
+        const tileCountX = Math.floor(canvas.width / gridSize);
+        const tileCountY = Math.floor(canvas.height / gridSize);
+
+        let snake = [];
+        let direction = { x: 1, y: 0 };
+        let nextDirection = { x: 1, y: 0 };
+        let apple = { x: 0, y: 0 };
+        let score = 0;
+        let gameRunning = false;
+        let gameLoop;
+
+        function initGame() {
+            snake = [
+                { x: Math.floor(tileCountX / 2), y: Math.floor(tileCountY / 2) }
+            ];
+            direction = { x: 1, y: 0 };
+            nextDirection = { x: 1, y: 0 };
+            score = 0;
+            scoreDisplay.textContent = `Score: ${score}`;
+            gameOverScreen.style.display = 'none';
+            spawnApple();
+            gameRunning = true;
+        }
+
+        function spawnApple() {
+            do {
+                apple.x = Math.floor(Math.random() * tileCountX);
+                apple.y = Math.floor(Math.random() * tileCountY);
+            } while (snake.some(segment => segment.x === apple.x && segment.y === apple.y));
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            direction = { ...nextDirection };
+
+            const head = {
+                x: snake[0].x + direction.x,
+                y: snake[0].y + direction.y
+            };
+
+            // Wall collision
+            if (head.x < 0 || head.x >= tileCountX || head.y < 0 || head.y >= tileCountY) {
+                endGame();
+                return;
+            }
+
+            // Self collision
+            if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                endGame();
+                return;
+            }
+
+            snake.unshift(head);
+
+            // Apple collision
+            if (head.x === apple.x && head.y === apple.y) {
+                score += 10;
+                scoreDisplay.textContent = `Score: ${score}`;
+                spawnApple();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw snake with neon glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#39ff14';
+            ctx.fillStyle = '#39ff14';
+
+            snake.forEach((segment, index) => {
+                const brightness = 1 - (index / snake.length) * 0.5;
+                ctx.fillStyle = `rgba(57, 255, 20, ${brightness})`;
+                ctx.fillRect(
+                    segment.x * gridSize + 1,
+                    segment.y * gridSize + 1,
+                    gridSize - 2,
+                    gridSize - 2
+                );
+            });
+
+            // Draw apple with red glow
+            ctx.shadowColor = '#ff0000';
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(
+                apple.x * gridSize + gridSize / 2,
+                apple.y * gridSize + gridSize / 2,
+                gridSize / 2 - 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+        }
+
+        function endGame() {
+            gameRunning = false;
+            clearInterval(gameLoop);
+            finalScoreDisplay.textContent = score;
+            gameOverScreen.style.display = 'block';
+        }
+
+        function startGame() {
+            initGame();
+            gameLoop = setInterval(() => {
+                update();
+                draw();
+            }, 100);
+        }
+
+        // WASD Controls
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+
+            if (key === 'r') {
+                startGame();
+                return;
+            }
+
+            if (!gameRunning) return;
+
+            switch (key) {
+                case 'w':
+                    if (direction.y !== 1) nextDirection = { x: 0, y: -1 };
+                    break;
+                case 's':
+                    if (direction.y !== -1) nextDirection = { x: 0, y: 1 };
+                    break;
+                case 'a':
+                    if (direction.x !== 1) nextDirection = { x: -1, y: 0 };
+                    break;
+                case 'd':
+                    if (direction.x !== -1) nextDirection = { x: 1, y: 0 };
+                    break;
+            }
+        });
+
+        restartBtn.addEventListener('click', startGame);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth * 0.9;
+            canvas.height = window.innerHeight * 0.85;
+        });
+
+        // Start the game
+        startGame();
+    </script>
+</body>
+</html>
